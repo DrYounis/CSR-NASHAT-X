@@ -1,6 +1,9 @@
 name: Auto Post Ramadan Hadith
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # Runs at 13:00 UTC every day.
     - cron: '0 13 * * *'
