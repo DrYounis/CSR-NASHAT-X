@@ -1,0 +1,15 @@
+[Unit]
+Description=Ramadan Sports Bot - Daily Auto-poster
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/ramadan_sports_bot
+Environment="PATH=/path/to/ramadan_sports_bot/venv/bin"
+ExecStart=/path/to/ramadan_sports_bot/venv/bin/python ramadan_bot.py --auto
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
