@@ -92,8 +92,14 @@ async function handleCustomTweet(request, env, corsHeaders) {
 }
 
 async function handleGenerate(request, env, corsHeaders) {
+  // Debug mode: Log what env keys exist (without exposing values)
+  const envKeys = Object.keys(env);
+
   if (!env.ANTHROPIC_API_KEY) {
-    return json({ ok: false, error: "ANTHROPIC_API_KEY not configured" }, 500, corsHeaders);
+    return json({
+      ok: false,
+      error: `ANTHROPIC_API_KEY not configured. Available keys in Cloudflare: ${envKeys.join(', ')}`
+    }, 500, corsHeaders);
   }
 
   try {
