@@ -8,7 +8,10 @@ on:
     # Runs at 13:00 UTC every day.
     - cron: '0 13 * * *'
   workflow_dispatch:
-    # Allows manual triggering
+    # Allows manual triggering from GitHub UI
+  repository_dispatch:
+    types: [employee_manual_post]
+    # Allows triggering from external employee dashboard
 
 jobs:
   post:

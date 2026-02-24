@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة نشر تغريدة رمضان</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center space-y-6">
+        
+        <div class="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-4xl mb-4">
+            🌙
+        </div>
+        
+        <h1 class="text-2xl font-bold text-gray-800">تغريدة رمضان الرياضية</h1>
+        <p class="text-gray-500 text-sm mb-6">اضغط الزر أدناه لنشر التغريدة المجدولة لليوم مباشرة على حساب X.</p>
+
+        <button id="postBtn" onclick="triggerPost()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition duration-200 shadow-lg flex justify-center items-center gap-2">
+            <svg id="spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="btnText">نشر تغريدة اليوم الآن 🚀</span>
+        </button>
+
+        <div id="statusMsg" class="mt-4 text-sm font-semibold rounded-lg p-3 hidden"></div>
+    </div>
+
+    <script>
+        // ⚠️ إعدادات مهمة: غيّر هذه القيم للخاصة بك قبل إرسال الملف للموظف
+        const GITHUB_OWNER = "DrYounis";      // اسم حسابك في جيت هب
+        const GITHUB_REPO = "CSR-NASHAT-X";   // اسم المستودع
+        // ضع رمز الدخول (PAT) هنا (يجب أن يكون Fine-Grained بصلاحيات Action فقط على هذا المستودع)
+        const GITHUB_TOKEN = "ضع_الرمز_السري_المُميَّز_هنا"; 
+        
+        async function triggerPost() {
+            if(GITHUB_TOKEN === "ضع_الرمز_السري_المُميَّز_هنا") {
+                showError("⚠️ الرجاء وضع رمز GITHUB_TOKEN في كود ملف HTML أولاً!");
+                return;
+            }
+
+            const btn = document.getElementById('postBtn');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btnText');
+            
+            btn.disabled = true;
+            btn.classList.replace('bg-blue-600', 'bg-blue-400');
+            spinner.classList.remove('hidden');
+            btnText.textContent = "جاري إرسال الطلب...";
+            hideMsg();
+
+            try {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_type: 'employee_manual_post'
+                    })
+                });
+
+                if (response.ok) {
+                    showSuccess("✅ تم إرسال أمر النشر بنجاح! سيتم النشر خلال أقل من دقيقة.");
+                } else {
+                    const err = await response.json();
+                    showError("❌ خطأ في الإرسال: " + (err.message || response.status));
+                }
+            } catch (error) {
+                showError("❌ خطأ بالاتصال: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.classList.replace('bg-blue-400', 'bg-blue-600');
+                spinner.classList.add('hidden');
+                btnText.textContent = "نشر تغريدة اليوم الآن 🚀";
+            }
+        }
+
+        function showSuccess(msg) {
+            const status = document.getElementById('statusMsg');
+            status.textContent = msg;
+            status.className = "mt-4 text-sm font-semibold rounded-lg p-3 bg-green-50 text-green-700 block";
+        }
+
+        function showError(msg) {
+            const status = document.getElementById('statusMsg');
+            status.textContent = msg;
+            status.className = "mt-4 text-sm font-semibold rounded-lg p-3 bg-red-50 text-red-700 block";
+        }
+
+        function hideMsg() {
+            document.getElementById('statusMsg').className = "hidden";
+        }
+    </script>
+</body>
+</html>
