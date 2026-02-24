@@ -1,0 +1,7 @@
+name = "ramadan-tweet-proxy"
+main = "cloudflare_worker.js"
+compatibility_date = "2025-02-24"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true

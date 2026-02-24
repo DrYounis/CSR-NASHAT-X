@@ -1,0 +1,6 @@
+{
+  "name": "ramadan-tweet-proxy",
+  "version": "1.0.0",
+  "description": "Cloudflare worker proxy for ramadan bot",
+  "main": "cloudflare_worker.js"
+}
