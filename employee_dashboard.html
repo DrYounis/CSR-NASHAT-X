@@ -286,6 +286,10 @@
                         <div>⏰ <strong>أفضل وقت:</strong> ${escapeHtml(p.best_time || '')}</div>
                     </div>
                     <div class="flex gap-2">
+                        <button onclick="publishTweet(this)" data-text="${btoa(unescape(encodeURIComponent(p.text)))}"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded-lg transition">
+                            🚀 نشر على X
+                        </button>
                         <button onclick="copyPost(this, ${i})" data-text="${btoa(unescape(encodeURIComponent(p.text)))}"
                             class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg transition">
                             📋 نسخ
@@ -297,6 +301,36 @@
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        async function publishTweet(btn) {
+            const text = decodeURIComponent(escape(atob(btn.dataset.text)));
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = "جاري النشر...";
+            btn.classList.replace('bg-green-600', 'bg-gray-400');
+
+            try {
+                const response = await fetch(WORKER_URL + "/tweet", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    btn.innerHTML = "✅ تم النشر!";
+                    btn.classList.replace('bg-gray-400', 'bg-green-600');
+                    setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
+                } else {
+                    btn.innerHTML = "❌ فشل";
+                    btn.classList.replace('bg-gray-400', 'bg-red-600');
+                    setTimeout(() => { btn.innerHTML = original; btn.classList.replace('bg-red-600', 'bg-green-600'); btn.disabled = false; }, 3000);
+                }
+            } catch (e) {
+                btn.innerHTML = "❌ خطأ";
+                btn.classList.replace('bg-gray-400', 'bg-red-600');
+                setTimeout(() => { btn.innerHTML = original; btn.classList.replace('bg-red-600', 'bg-green-600'); btn.disabled = false; }, 3000);
+            }
         }
 
         function copyPost(btn, idx) {

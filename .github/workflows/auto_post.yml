@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     # Allows manual triggering from GitHub UI
   repository_dispatch:
-    types: [employee_manual_post]
+    types: [employee_manual_post, custom_tweet]
     # Allows triggering from external employee dashboard
 
 jobs:
@@ -40,8 +40,13 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+          CUSTOM_TWEET_TEXT: ${{ github.event.client_payload.tweet_text || '' }}
         run: |
-          python ramadan_bot.py --auto
+          if [ -n "$CUSTOM_TWEET_TEXT" ]; then
+            python ramadan_bot.py --custom-text "$CUSTOM_TWEET_TEXT"
+          else
+            python ramadan_bot.py --auto
+          fi
 
       - name: Commit and push changes
         run: |

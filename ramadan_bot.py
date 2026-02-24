@@ -124,6 +124,17 @@ class RamadanSportsBot:
             print(f"❌ خطأ في النشر: {str(e)}")
             return False
     
+    def post_custom_tweet(self, text):
+        """نشر تغريدة مخصصة مباشرة"""
+        try:
+            response = self.client.create_tweet(text=text)
+            print(f"✅ تم نشر التغريدة المخصصة بنجاح!")
+            print(f"🔗 ID: {response.data['id']}")
+            return True
+        except Exception as e:
+            print(f"❌ خطأ في النشر: {str(e)}")
+            return False
+
     def auto_post_today(self):
         """نشر تغريدة اليوم تلقائياً"""
         day = self.get_ramadan_day()
@@ -161,9 +172,17 @@ def main():
     """القائمة الرئيسية أو التشغيل التلقائي"""
     parser = argparse.ArgumentParser(description="Ramadan Sports Hadiths Bot for X")
     parser.add_argument("--auto", action="store_true", help="Run daily post automatically without interactive menu")
+    parser.add_argument("--custom-text", type=str, help="Post a custom tweet text directly")
     args = parser.parse_args()
 
     bot = RamadanSportsBot()
+
+    if args.custom_text:
+        print("=" * 60)
+        print("🌙 نشر تغريدة مخصصة من الاستوديو")
+        print("=" * 60)
+        bot.post_custom_tweet(args.custom_text)
+        return
 
     if args.auto:
         print("=" * 60)

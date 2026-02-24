@@ -24,6 +24,10 @@ export default {
       return handleGenerate(request, env, corsHeaders);
     }
 
+    if (url.pathname === "/tweet") {
+      return handleCustomTweet(request, env, corsHeaders);
+    }
+
     // Default: trigger GitHub Actions dispatch
     return handleDispatch(env, corsHeaders);
   },
@@ -41,6 +45,39 @@ async function handleDispatch(env, corsHeaders) {
         "User-Agent": "RamadanBot-Worker",
       },
       body: JSON.stringify({ event_type: "employee_manual_post" }),
+    });
+
+    if (response.ok) {
+      return json({ ok: true }, 200, corsHeaders);
+    } else {
+      const err = await response.text();
+      return json({ ok: false, error: err }, 502, corsHeaders);
+    }
+  } catch (e) {
+    return json({ ok: false, error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function handleCustomTweet(request, env, corsHeaders) {
+  try {
+    const { text } = await request.json();
+    if (!text) {
+      return json({ ok: false, error: "Tweet text is required" }, 400, corsHeaders);
+    }
+
+    const ghUrl = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/dispatches`;
+    const response = await fetch(ghUrl, {
+      method: "POST",
+      headers: {
+        "Accept": "application/vnd.github.v3+json",
+        "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+        "User-Agent": "RamadanBot-Worker",
+      },
+      body: JSON.stringify({
+        event_type: "custom_tweet",
+        client_payload: { tweet_text: text },
+      }),
     });
 
     if (response.ok) {
