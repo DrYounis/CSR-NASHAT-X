@@ -1,0 +1,25 @@
+# حماية المفاتيح السرية
+.env
+.env.local
+.env.*.local
+
+# سجل المنشورات (يُحفظ تلقائياً بواسطة GitHub Actions)
+# posted_log.json  # احذف التعليق إذا أردت استبعاده
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+venv/
+.venv/
+env/
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp
