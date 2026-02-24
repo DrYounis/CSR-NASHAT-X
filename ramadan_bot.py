@@ -135,10 +135,6 @@ class RamadanSportsBot:
             print("🎉 انتهى شهر رمضان المبارك")
             return
         
-        if day in self.posted_days:
-            print(f"✓ تم نشر تغريدة اليوم {day} مسبقاً")
-            return
-        
         print(f"📅 اليوم {day} من رمضان")
         self.post_tweet(day, dry_run=False)
     
