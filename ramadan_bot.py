@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import pytz
+import random
 
 # تحميل المتغيرات البيئية
 load_dotenv()
@@ -25,7 +26,11 @@ class RamadanSportsBot:
             data = json.load(f)
             self.hadiths = data['hadiths']
             self.settings = data['settings']
-        
+
+        # تحميل منشورات الرعاية
+        self.sponsorship_file = 'sponsorship_tweets.json'
+        self.sponsorship_tweets = self.load_sponsorship_tweets()
+
         # تهيئة Twitter API v2
         self.client = tweepy.Client(
             bearer_token=os.getenv('BEARER_TOKEN'),
@@ -34,10 +39,17 @@ class RamadanSportsBot:
             access_token=os.getenv('ACCESS_TOKEN'),
             access_token_secret=os.getenv('ACCESS_TOKEN_SECRET')
         )
-        
+
         # تحميل سجل المنشورات
         self.log_file = 'posted_log.json'
         self.posted_days = self.load_posted_log()
+
+    def load_sponsorship_tweets(self):
+        """تحميل منشورات الرعاية"""
+        if os.path.exists(self.sponsorship_file):
+            with open(self.sponsorship_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {"sponsorship_tweets": [], "settings": {}}
     
     def load_posted_log(self):
         """تحميل سجل الأيام التي تم نشرها"""
@@ -205,16 +217,95 @@ class RamadanSportsBot:
     def auto_post_today(self):
         """نشر تغريدة اليوم تلقائياً"""
         day = self.get_ramadan_day()
-        
+
         if day == 0:
             print("⏳ رمضان لم يبدأ بعد")
             return
         elif day == -1:
             print("🎉 انتهى شهر رمضان المبارك")
             return
-        
+
         print(f"📅 اليوم {day} من رمضان")
         self.post_tweet(day, dry_run=False)
+
+    def get_current_day_name(self):
+        """الحصول على اسم اليوم الحالي"""
+        tz = pytz.timezone(self.settings.get('timezone', 'Asia/Riyadh'))
+        now = datetime.now(tz)
+        return now.strftime('%A').lower()
+
+    def post_sponsorship_tweet(self, dry_run=False):
+        """نشر تغريدة رعاية أسبوعية"""
+        tweets = self.sponsorship_tweets.get('sponsorship_tweets', [])
+        
+        if not tweets:
+            print("⚠️ لا توجد منشورات رعاية متاحة")
+            return False
+
+        # اختيار تغريدة عشوائية
+        tweet_data = random.choice(tweets)
+        tweet_text = tweet_data['text']
+
+        if dry_run:
+            print("\n" + "="*50)
+            print("🧪 وضع التجربة - منشور رعاية")
+            print("="*50)
+            print(tweet_text)
+            print("="*50)
+            print(f"📊 عدد الحروف: {len(tweet_text)}")
+            return True
+
+        try:
+            response = self.client.create_tweet(text=tweet_text)
+            print(f"✅ تم نشر منشور الرعاية بنجاح!")
+            print(f"🔗 ID: {response.data['id']}")
+            return True
+        except tweepy.errors.TweepyException as e:
+            error_code = getattr(e, 'api_codes', [])
+            if isinstance(error_code, list) and len(error_code) > 0:
+                error_code = error_code[0]
+            else:
+                error_code = None
+            
+            if error_code == 187:
+                print(f"⚠️ تحذير: هذه التغريدة مكررة")
+                return False
+            else:
+                print(f"❌ خطأ في النشر: {str(e)}")
+                return False
+        except Exception as e:
+            print(f"❌ حدث خطأ غير متوقع أثناء النشر")
+            return False
+
+    def schedule_weekly_sponsorship(self):
+        """جدولة نشر منشورات الرعاية الأسبوعية"""
+        weekly_schedule = self.sponsorship_tweets.get('settings', {}).get('weekly_schedule', {})
+        
+        print(f"⏰ تم جدولة منشورات الرعاية الأسبوعية")
+        print(f"🌍 المنطقة الزمنية: {self.settings.get('timezone', 'Asia/Riyadh')}")
+        
+        # جدولة المنشورات حسب الأيام
+        day_map = {
+            'monday': schedule.every().monday,
+            'tuesday': schedule.every().tuesday,
+            'wednesday': schedule.every().wednesday,
+            'thursday': schedule.every().thursday,
+            'friday': schedule.every().friday,
+            'saturday': schedule.every().saturday,
+            'sunday': schedule.every().sunday
+        }
+        
+        for day, time_str in weekly_schedule.items():
+            if day in day_map:
+                day_map[day].at(time_str).do(self.post_sponsorship_tweet)
+                print(f"  📅 {day}: {time_str}")
+        
+        print("\n🔄 البوت يعمل الآن... (اضغط Ctrl+C للإيقاف)\n")
+        
+        # الاستمرار في التشغيل
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
     
     def schedule_daily_post(self):
         """جدولة النشر اليومي"""
@@ -240,6 +331,8 @@ def main():
     parser = argparse.ArgumentParser(description="Ramadan Sports Hadiths Bot for X")
     parser.add_argument("--auto", action="store_true", help="Run daily post automatically without interactive menu")
     parser.add_argument("--custom-text", type=str, help="Post a custom tweet text directly")
+    parser.add_argument("--sponsorship", action="store_true", help="Post weekly sponsorship tweet")
+    parser.add_argument("--schedule-sponsorship", action="store_true", help="Schedule weekly sponsorship posts")
     args = parser.parse_args()
 
     bot = RamadanSportsBot()
@@ -251,6 +344,13 @@ def main():
         bot.post_custom_tweet(args.custom_text)
         return
 
+    if args.sponsorship:
+        print("=" * 60)
+        print("💼 نشر منشور رعاية")
+        print("=" * 60)
+        bot.post_sponsorship_tweet(dry_run=False)
+        return
+
     if args.auto:
         print("=" * 60)
         print("🌙 تشغيل النشر التلقائي - بوت الأحاديث الرياضية")
@@ -258,10 +358,17 @@ def main():
         bot.auto_post_today()
         return
 
+    if args.schedule_sponsorship:
+        print("=" * 60)
+        print("💼 جدولة منشورات الرعاية الأسبوعية")
+        print("=" * 60)
+        bot.schedule_weekly_sponsorship()
+        return
+
     print("=" * 60)
     print("🌙 بوت الأحاديث الرياضية في رمضان")
     print("=" * 60)
-    
+
     print("\n📋 الخيارات المتاحة:")
     print("1. اختبار تغريدة (بدون نشر فعلي)")
     print("2. نشر تغريدة اليوم")
@@ -269,48 +376,60 @@ def main():
     print("4. تشغيل النشر التلقائي اليومي")
     print("5. عرض حالة رمضان")
     print("6. إعادة ضبط سجل المنشورات")
+    print("7. اختبار منشور رعاية")
+    print("8. نشر منشور رعاية الآن")
+    print("9. جدولة منشورات الرعاية الأسبوعية")
     print("0. خروج")
-    
+
     while True:
         try:
             choice = input("\n👉 اختر رقم الخيار: ").strip()
-            
+
             if choice == '1':
                 day = int(input("أدخل رقم اليوم (1-30): "))
                 bot.post_tweet(day, dry_run=True)
-            
+
             elif choice == '2':
                 bot.auto_post_today()
-            
+
             elif choice == '3':
                 day = int(input("أدخل رقم اليوم (1-30): "))
                 confirm = input(f"هل أنت متأكد من نشر اليوم {day}؟ (y/n): ")
                 if confirm.lower() == 'y':
                     bot.post_tweet(day, dry_run=False)
-            
+
             elif choice == '4':
                 bot.schedule_daily_post()
-            
+
             elif choice == '5':
                 day = bot.get_ramadan_day()
                 print(f"\n📅 اليوم الحالي من رمضان: {day}")
                 print(f"✅ الأيام المنشورة: {len(bot.posted_days)}")
                 print(f"📝 الأيام: {bot.posted_days}")
-            
+
             elif choice == '6':
                 confirm = input("⚠️ هل أنت متأكد من حذف سجل المنشورات؟ (y/n): ")
                 if confirm.lower() == 'y':
                     bot.posted_days = []
                     bot.save_posted_log(0)
                     print("✅ تم إعادة ضبط السجل")
-            
+
+            elif choice == '7':
+                bot.post_sponsorship_tweet(dry_run=True)
+
+            elif choice == '8':
+                bot.post_sponsorship_tweet(dry_run=False)
+
+            elif choice == '9':
+                bot.schedule_weekly_sponsorship()
+
             elif choice == '0':
                 print("👋 مع السلامة!")
                 break
-            
+
             else:
                 print("❌ خيار غير صحيح!")
-        
+
         except KeyboardInterrupt:
             print("\n\n👋 تم إيقاف البوت")
             break

@@ -5,12 +5,31 @@ on:
     branches:
       - main
   schedule:
-    # Runs at 13:00 UTC every day.
+    # Runs at 13:00 UTC every day for Ramadan content.
     - cron: '0 13 * * *'
+  # Weekly sponsorship posts (Monday 10:00 AM Riyadh time = 07:00 UTC)
+  schedule:
+    - cron: '0 7 * * 1'  # Monday
+    - cron: '0 7 * * 3'  # Wednesday
+    - cron: '0 7 * * 5'  # Friday
   workflow_dispatch:
     # Allows manual triggering from GitHub UI
+    inputs:
+      post_type:
+        description: 'Type of post to publish'
+        required: true
+        default: 'ramadan'
+        type: choice
+        options:
+          - ramadan
+          - sponsorship
+          - custom
+      custom_text:
+        description: 'Custom tweet text (if post_type is custom)'
+        required: false
+        type: string
   repository_dispatch:
-    types: [employee_manual_post, custom_tweet]
+    types: [employee_manual_post, custom_tweet, sponsorship_tweet]
     # Allows triggering from external employee dashboard
 
 jobs:
@@ -33,6 +52,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Determine post type
+        id: post_type
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ github.event.inputs.post_type }}" >> $GITHUB_OUTPUT
+            echo "custom_text=${{ github.event.inputs.custom_text }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            if [ "${{ github.event.action }}" = "sponsorship_tweet" ]; then
+              echo "type=sponsorship" >> $GITHUB_OUTPUT
+            else
+              echo "type=ramadan" >> $GITHUB_OUTPUT
+            fi
+            echo "custom_text=${{ github.event.client_payload.tweet_text || '' }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Check if it's a sponsorship schedule (Mon/Wed/Fri)
+            DAY_OF_WEEK=$(date +%u)
+            if [ "$DAY_OF_WEEK" = "1" ] || [ "$DAY_OF_WEEK" = "3" ] || [ "$DAY_OF_WEEK" = "5" ]; then
+              echo "type=sponsorship" >> $GITHUB_OUTPUT
+            else
+              echo "type=ramadan" >> $GITHUB_OUTPUT
+            fi
+            echo "custom_text=" >> $GITHUB_OUTPUT
+          else
+            echo "type=ramadan" >> $GITHUB_OUTPUT
+            echo "custom_text=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run Ramadan Bot
         env:
           BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
@@ -40,11 +86,16 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
-          CUSTOM_TWEET_TEXT: ${{ github.event.client_payload.tweet_text || '' }}
+          CUSTOM_TWEET_TEXT: ${{ steps.post_type.outputs.custom_text }}
         run: |
-          if [ -n "$CUSTOM_TWEET_TEXT" ]; then
+          if [ "${{ steps.post_type.outputs.type }}" = "sponsorship" ]; then
+            echo "📢 Posting sponsorship tweet..."
+            python ramadan_bot.py --sponsorship
+          elif [ -n "$CUSTOM_TWEET_TEXT" ]; then
+            echo "📝 Posting custom tweet..."
             python ramadan_bot.py --custom-text "$CUSTOM_TWEET_TEXT"
           else
+            echo "🌙 Posting Ramadan hadith..."
             python ramadan_bot.py --auto
           fi
 
