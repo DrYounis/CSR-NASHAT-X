@@ -77,7 +77,7 @@ class RamadanSportsBot:
         reference = hadith_data['reference']
         tip = hadith_data['tip']
         hashtags = ' '.join(self.settings['hashtags'])
-        
+
         tweet = f"""🌙 اليوم {day} من #رمضان
 
 📖 {hadith}
@@ -87,6 +87,15 @@ class RamadanSportsBot:
 {tip}
 
 {hashtags}"""
+
+        # Validate tweet length (Twitter limit: 280 characters)
+        if len(tweet) > 280:
+            print(f"⚠️ تحذير: التغريدة تتجاوز 280 حرف ({len(tweet)} حرف)")
+            print("💡 سيتم تقصير النص تلقائياً")
+            # Truncate while preserving the message
+            max_length = 280
+            if len(tweet) > max_length:
+                tweet = tweet[:max_length-3] + "..."
         
         return tweet
     
@@ -98,13 +107,13 @@ class RamadanSportsBot:
             if h['day'] == day:
                 hadith_data = h
                 break
-        
+
         if not hadith_data:
             print(f"❌ لم يتم العثور على محتوى لليوم {day}")
             return False
-        
+
         tweet_text = self.format_tweet(hadith_data)
-        
+
         if dry_run:
             print("\n" + "="*50)
             print("🧪 وضع التجربة (لن يتم النشر الفعلي)")
@@ -113,26 +122,76 @@ class RamadanSportsBot:
             print("="*50)
             print(f"📊 عدد الحروف: {len(tweet_text)}")
             return True
-        
+
         try:
             response = self.client.create_tweet(text=tweet_text)
             print(f"✅ تم نشر تغريدة اليوم {day} بنجاح!")
             print(f"🔗 ID: {response.data['id']}")
             self.save_posted_log(day)
             return True
+        except tweepy.errors.TweepyException as e:
+            # Handle specific Twitter API errors
+            error_code = getattr(e, 'api_codes', [None])[0] if hasattr(e, 'api_codes') else None
+            
+            if error_code == 187:  # Duplicate tweet
+                print(f"⚠️ تحذير: هذه التغريدة مكررة")
+                return False
+            elif error_code == 188:  # Status too long
+                print(f"❌ خطأ: التغريدة أطول من 280 حرف ({len(tweet_text)} حرف)")
+                return False
+            elif error_code == 326:  # Rate limited
+                print(f"⏳ تم الوصول لحد النشر - حاول لاحقاً")
+                return False
+            elif error_code in [189, 323]:  # Invalid media/bad request
+                print(f"❌ خطأ في صيغة التغريدة: {str(e)}")
+                return False
+            else:
+                print(f"❌ خطأ في النشر: {str(e)}")
+                return False
         except Exception as e:
-            print(f"❌ خطأ في النشر: {str(e)}")
+            # Generic error - log without exposing sensitive details
+            print(f"❌ حدث خطأ غير متوقع أثناء النشر")
             return False
-    
+
     def post_custom_tweet(self, text):
         """نشر تغريدة مخصصة مباشرة"""
+        # Validate input
+        if not text or not isinstance(text, str):
+            print("❌ خطأ: النص يجب أن يكون نصاً صالحاً")
+            return False
+        
+        text = text.strip()
+        
+        if len(text) < 5:
+            print("❌ خطأ: النص قصير جداً (الحد الأدنى 5 أحرف)")
+            return False
+        
+        if len(text) > 280:
+            print(f"❌ خطأ: النص طويل جداً ({len(text)} حرف، الحد الأقصى 280)")
+            return False
+        
         try:
             response = self.client.create_tweet(text=text)
             print(f"✅ تم نشر التغريدة المخصصة بنجاح!")
             print(f"🔗 ID: {response.data['id']}")
             return True
+        except tweepy.errors.TweepyException as e:
+            error_code = getattr(e, 'api_codes', [None])[0] if hasattr(e, 'api_codes') else None
+            
+            if error_code == 187:
+                print(f"⚠️ تحذير: هذه التغريدة مكررة")
+                return False
+            elif error_code == 188:
+                print(f"❌ خطأ: التغريدة أطول من 280 حرف")
+                return False
+            elif error_code == 326:
+                print(f"⏳ تم الوصول لحد النشر - حاول لاحقاً")
+                return False
+            else:
+                print(f"❌ خطأ في النشر: {str(e)}")
+                return False
         except Exception as e:
-            print(f"❌ خطأ في النشر: {str(e)}")
+            print(f"❌ حدث خطأ غير متوقع أثناء النشر")
             return False
 
     def auto_post_today(self):
