@@ -131,7 +131,11 @@ class RamadanSportsBot:
             return True
         except tweepy.errors.TweepyException as e:
             # Handle specific Twitter API errors
-            error_code = getattr(e, 'api_codes', [None])[0] if hasattr(e, 'api_codes') else None
+            error_code = getattr(e, 'api_codes', [])
+            if isinstance(error_code, list) and len(error_code) > 0:
+                error_code = error_code[0]
+            else:
+                error_code = None
             
             if error_code == 187:  # Duplicate tweet
                 print(f"⚠️ تحذير: هذه التغريدة مكررة")
@@ -176,7 +180,11 @@ class RamadanSportsBot:
             print(f"🔗 ID: {response.data['id']}")
             return True
         except tweepy.errors.TweepyException as e:
-            error_code = getattr(e, 'api_codes', [None])[0] if hasattr(e, 'api_codes') else None
+            error_code = getattr(e, 'api_codes', [])
+            if isinstance(error_code, list) and len(error_code) > 0:
+                error_code = error_code[0]
+            else:
+                error_code = None
             
             if error_code == 187:
                 print(f"⚠️ تحذير: هذه التغريدة مكررة")
